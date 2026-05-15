@@ -4,43 +4,56 @@ Projekt detekcji poziomu wody oparty na czujnikach Halla TLE4946.
 
 ## 📋 Opis projektu
 
-System wykrywania poziomu wody wykorzystujący trzy czujniki Halla TLE4946. Projekt składa się z modułu mikrokontrolera (Arduino) oraz dedykowanych płytek PCB do konwersji sygnału z czujników Halla na sygnał elektrodowy.
+System wykrywania poziomu wody wykorzystujący trzy czujniki Halla TLE4946. Projekt składa się z modułu mikrokontrolera (Arduino) oraz dedykowanych płytek PCB do konwersji sygnału z czujników Halla na sygnał elektrodowy. System steruje trzema przekaźnikami (LOW, HIGH, SAFE) na podstawie odczytów analogowych z czujników. Napięcie zasilania VCC jest mierzone dynamicznie przez wewnętrzne źródło referencyjne AVR.
 
 ## 🔧 Komponenty
 
 ### Hardware
 - **Czujniki Halla TLE4946** - 3 sztuki do detekcji poziomu wody
-- **Arduino** - mikrokontroler do przetwarzania sygnałów
-- **LED** - 3 diody sygnalizacyjne (piny 2, 3, 4)
+- **Arduino (AVR)** - mikrokontroler do przetwarzania sygnałów
+- **Przekaźniki** - 3 sztuki (LOW, HIGH, SAFE)
 - **PCB Czujnik Wody** - płytka główna czujnika
 - **PCB Konwerter Hal-Elektrody** - konwerter sygnału
 
-### Parametry elektryczne
-- Napięcie zasilania: **4.5V**
-- Wejścia analogowe: **A0, A1, A2**
-- Wyjścia LED: **D2, D3, D4**
+### Mapowanie pinów
+
+| Sygnał | Pin Arduino | Kierunek |
+|--------|-------------|----------|
+| HALL_LOW  | A3 | Wejście analogowe |
+| HALL_HIGH | A6 | Wejście analogowe |
+| HALL_SAFE | A7 | Wejście analogowe |
+| RELAY_LOW  | A0 | Wyjście cyfrowe |
+| RELAY_HIGH | A1 | Wyjście cyfrowe |
+| RELAY_SAFE | A2 | Wyjście cyfrowe |
 
 ## 📊 Zasada działania
 
-System odczytuje napięcie z trzech czujników Halla i klasyfikuje stan każdego czujnika:
+System odczytuje napięcie z trzech czujników Halla i steruje odpowiadającymi im przekaźnikami z histerezą:
 
-| Stan | Zakres napięcia | Opis |
-|------|-----------------|------|
-| **LOW** | 0% - 10% VCC | Brak detekcji wody |
-| **HIGH** | 90% - 100% VCC | Wykryto wodę |
-| **ERROR** | 10% - 90% VCC | Błąd czujnika (miganie LED) |
+| Próg | Napięcie | Działanie |
+|------|----------|-----------|
+| **HIGH_THRESHOLD_V** | 1.5 V | Przekaźnik włączany (stan aktywny) |
+| **LOW_THRESHOLD_V**  | 0.3 V | Przekaźnik wyłączany (stan nieaktywny) |
 
-### Sygnalizacja LED
-- **LED włączony** - stan HIGH (woda wykryta)
-- **LED wyłączony** - stan LOW (brak wody)
-- **LED migający (300ms)** - błąd czujnika
+Hystereza zapobiega drganiom wyjść przy napięciach pomiędzy progami.
+
+### Pomiar VCC
+Napięcie zasilania jest mierzane przy starcie za pomocą wewnętrznego źródła referencyjnego AVR (bandgap 1.1 V) i używane do przeliczania wartości ADC na wolty.
+
+### Watchdog Timer
+Aktywowany Watchdog Timer (WDT) z timeout **1 sekunda** zapewnia automatyczny restart przy zawieszeniu systemu.
+
+### Logowanie szeregowe
+Co **500 ms** na port szeregowy wysyłane są zmierzone napięcia i stany wszystkich trzech kanałów.
 
 ## 📁 Struktura projektu
 
 ```
 my_project/
 ├── Detector_TLE4946/
-│   └── Detektor_TLE4946.ino    # Kod Arduino
+│   └── Detector_TLE4946.ino    # Kod Arduino
+├── Detector_APS1145/
+│   └── Detektor_APS1145.ino    # Alternatywny detektor
 ├── PCB_project/
 │   ├── 3D_model/               # Modele 3D płytek
 │   ├── EasyEda_Project/        # Projekty schematów i PCB
@@ -51,23 +64,23 @@ my_project/
 ## 🚀 Uruchomienie
 
 1. **Wgraj kod na Arduino:**
-   - Otwórz plik `my_project/Detector_TLE4946/Detektor_TLE4946.ino` w Arduino IDE
-   - Wybierz odpowiednią płytkę i port
+   - Otwórz plik `my_project/Detector_TLE4946/Detector_TLE4946.ino` w Arduino IDE
+   - Wybierz odpowiednią płytkę (AVR) i port
    - Wgraj szkic
 
-2. **Podłącz czujniki:**
-   - Czujnik 1 → A0
-   - Czujnik 2 → A1
-   - Czujnik 3 → A2
+2. **Podłącz czujniki Halla:**
+   - HALL LOW  → A3
+   - HALL HIGH → A6
+   - HALL SAFE → A7
 
-3. **Podłącz LED:**
-   - LED 1 → D2
-   - LED 2 → D3
-   - LED 3 → D4
+3. **Podłącz przekaźniki:**
+   - RELAY LOW  → A0
+   - RELAY HIGH → A1
+   - RELAY SAFE → A2
 
 4. **Monitor szeregowy:**
-   - Otwórz monitor szeregowy (9600 baud)
-   - Odczytuj napięcia i stany czujników
+   - Otwórz monitor szeregowy (**115200 baud**)
+   - Obserwuj zmierzone napięcia i stany przekaźników co 500 ms
 
 ## 📦 Pliki PCB
 

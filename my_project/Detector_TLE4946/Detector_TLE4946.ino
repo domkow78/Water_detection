@@ -121,7 +121,7 @@ void setup()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
-    display.println(F("=== TLE4946START ==="));
+    display.println(F("=== TLE4946 START ==="));
     display.print(F("Vcc: "));
     display.print(Vcc, 2);
     display.println(F(" V"));

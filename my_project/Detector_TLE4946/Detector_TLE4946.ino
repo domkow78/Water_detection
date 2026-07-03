@@ -1,4 +1,14 @@
 #include <avr/wdt.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+#define SCREEN_ADDRESS 0x3C
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #define HALL_LOW_PIN        A3
 #define HALL_HIGH_PIN       A6
@@ -72,6 +82,20 @@ void setup()
 
     delay(100);
 
+    // Inicjalizacja wyświetlacza OLED
+    if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+        Serial.println(F("SSD1306 allocation failed"));
+        for (;;);
+    }
+
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println(F("Initializing..."));
+    display.display();
+    delay(1000);
+
     Vcc = readVcc() / 1000.0;
 
     delay(100);
@@ -92,6 +116,17 @@ void setup()
     Serial.print("Measured Vcc: ");
     Serial.print(Vcc, 3);
     Serial.println(" V");
+
+    // Wyświetlenie informacji startowej na OLED
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println(F("=== SYSTEM START ==="));
+    display.print(F("Vcc: "));
+    display.print(Vcc, 2);
+    display.println(F(" V"));
+    display.display();
+    delay(2000);
 
     wdt_enable(WDTO_1S);
 }
@@ -132,5 +167,39 @@ void loop()
         Serial.print(hallHighState);
         Serial.print(" ");
         Serial.println(hallSafeState);
+
+        // Wyświetlenie danych na OLED
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setCursor(0, 0);
+        
+        // Nagłówek
+        display.println(F("Hall Sensor Monitor"));
+        display.println(F("------------------"));
+        
+        // Napięcia czujników
+        display.print(F("LOW:  "));
+        display.print(hallLowV, 2);
+        display.println(F(" V"));
+        
+        display.print(F("HIGH: "));
+        display.print(hallHighV, 2);
+        display.println(F(" V"));
+        
+        display.print(F("SAFE: "));
+        display.print(hallSafeV, 2);
+        display.println(F(" V"));
+        
+        display.println(F("------------------"));
+        
+        // Stany przekaźników
+        display.print(F("States: "));
+        display.print(hallLowState ? "1" : "0");
+        display.print(F(" "));
+        display.print(hallHighState ? "1" : "0");
+        display.print(F(" "));
+        display.println(hallSafeState ? "1" : "0");
+        
+        display.display();
     }
 }

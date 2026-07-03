@@ -92,7 +92,7 @@ void setup()
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
-    display.println(F("Initializing..."));
+    display.println(F("TLE4946 Init..."));
     display.display();
     delay(1000);
 
@@ -112,7 +112,7 @@ void setup()
     digitalWrite(RELAY_HIGH_PIN, hallHighState);
     digitalWrite(RELAY_SAFE_PIN, hallSafeState);
 
-    Serial.println("=== SYSTEM START ===");
+    Serial.println("=== TLE4946 SYSTEM START ===");
     Serial.print("Measured Vcc: ");
     Serial.print(Vcc, 3);
     Serial.println(" V");
@@ -121,7 +121,7 @@ void setup()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
-    display.println(F("=== SYSTEM START ==="));
+    display.println(F("=== TLE4946START ==="));
     display.print(F("Vcc: "));
     display.print(Vcc, 2);
     display.println(F(" V"));
@@ -174,7 +174,7 @@ void loop()
         display.setCursor(0, 0);
         
         // Nagłówek
-        display.println(F("Hall Sensor Monitor"));
+        display.println(F("TLE4946 Monitor"));
         display.println(F("------------------"));
         
         // Napięcia czujników

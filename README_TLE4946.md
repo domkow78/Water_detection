@@ -2,9 +2,7 @@
 
 Projekt detekcji poziomu wody oparty na czujnikach Halla TLE4946.
 
-## 📋 Opis projektu
-
-System wykrywania poziomu wody wykorzystujący trzy czujniki Halla TLE4946. Projekt składa się z modułu mikrokontrolera (Arduino) oraz dedykowanych płytek PCB do konwersji sygnału z czujników Halla na sygnał elektrodowy. System steruje trzema przekaźnikami (LOW, HIGH, SAFE) na podstawie odczytów analogowych z czujników. Napięcie zasilania VCC jest mierzone dynamicznie przez wewnętrzne źródło referencyjne AVR.
+System wykrywania poziomu wody wykorzystujący trzy czujniki Halla TLE4946. Projekt składa się z modułu mikrokontrolera (Arduino) oraz dedykowanych płytek PCB do konwersji sygnału z czujników Halla na sygnał elektrodowy. System steruje trzema przekaźnikami (LOW, HIGH, SAFE) na podstawie odczytów analogowych z czujników. Napięcie zasilania VCC jest mierzone dynamicznie przez wewnętrzne źródło referencyjne AVR. Aktualne pomiary i stany przekaźników są prezentowane w czasie rzeczywistym na wyświetlaczu OLED (SSD1306) oraz na porcie szeregowym.
 
 ## 🔧 Komponenty
 
@@ -12,8 +10,15 @@ System wykrywania poziomu wody wykorzystujący trzy czujniki Halla TLE4946. Proj
 - **Czujniki Halla TLE4946** - 3 sztuki do detekcji poziomu wody
 - **Arduino (AVR)** - mikrokontroler do przetwarzania sygnałów
 - **Przekaźniki** - 3 sztuki (LOW, HIGH, SAFE)
+- **Wyświetlacz OLED SSD1306** - 128×64 px, magistrala I2C (adres 0x3C)
 - **PCB Czujnik Wody** - płytka główna czujnika
 - **PCB Konwerter Hal-Elektrody** - konwerter sygnału
+
+### Wymagane biblioteki (Arduino)
+- **`avr/wdt.h`** - Watchdog Timer (wbudowana)
+- **`Wire.h`** - komunikacja I2C (wbudowana)
+- **`Adafruit_GFX`** - biblioteka graficzna
+- **`Adafruit_SSD1306`** - obsługa wyświetlacza OLED
 
 ### Mapowanie pinów
 
@@ -25,6 +30,8 @@ System wykrywania poziomu wody wykorzystujący trzy czujniki Halla TLE4946. Proj
 | RELAY_LOW  | A0 | Wyjście cyfrowe |
 | RELAY_HIGH | A1 | Wyjście cyfrowe |
 | RELAY_SAFE | A2 | Wyjście cyfrowe |
+| OLED SDA | A4 | I2C (dane) |
+| OLED SCL | A5 | I2C (zegar) |
 
 ## 📊 Zasada działania
 
@@ -45,6 +52,11 @@ Aktywowany Watchdog Timer (WDT) z timeout **1 sekunda** zapewnia automatyczny re
 
 ### Logowanie szeregowe
 Co **500 ms** na port szeregowy wysyłane są zmierzone napięcia i stany wszystkich trzech kanałów.
+
+### Wyświetlacz OLED
+Wyświetlacz SSD1306 (128×64, I2C @ 0x3C) prezentuje interfejs użytkownika:
+- **Ekran startowy** - komunikat inicjalizacji oraz zmierzone napięcie VCC
+- **Ekran monitorowania** - odświeżany co **500 ms**, pokazuje napięcia czujników LOW/HIGH/SAFE oraz stany przekaźników (0/1)
 
 ## 📁 Struktura projektu
 
@@ -78,7 +90,12 @@ my_project/
    - RELAY HIGH → A1
    - RELAY SAFE → A2
 
-4. **Monitor szeregowy:**
+4. **Podłącz wyświetlacz OLED (I2C):**
+   - SDA → A4
+   - SCL → A5
+   - VCC → 3.3V / 5V, GND → GND
+
+5. **Monitor szeregowy:**
    - Otwórz monitor szeregowy (**115200 baud**)
    - Obserwuj zmierzone napięcia i stany przekaźników co 500 ms
 
@@ -95,6 +112,8 @@ my_project/
 
 - **Arduino IDE** - programowanie mikrokontrolera
 - **EasyEDA** - projektowanie schematów i PCB
+- **Adafruit GFX Library** - grafika na wyświetlaczu
+- **Adafruit SSD1306** - sterownik wyświetlacza OLED
 
 ## 📝 Licencja
 

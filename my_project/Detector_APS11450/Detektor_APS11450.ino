@@ -97,8 +97,13 @@ const unsigned long logInterval          = 500;    // okres logowania Serial/OLE
 #define FAULT_RELAY_SAFE    LOW
 
 // ===========================================================================
-//  K2. Klasyfikacja sygnalu APS11450 (SignalClass + classifySignal)
+//  DEFINICJE TYPÓW (muszą być PRZED pierwszą funkcją)
+//  Arduino IDE automatycznie generuje prototypy funkcji. Jeśli typy
+//  (enum/struct) są zadeklarowane niżej niż pierwszy nagłówek funkcji,
+//  kompilator zgłasza błędy "does not name a type".
 // ===========================================================================
+
+// K2. Klasyfikacja sygnalu APS11450 (SignalClass)
 enum SignalClass {
     SIG_LOW,        // poprawny LOW  (10-30% VPU)
     SIG_HIGH,       // poprawny HIGH (70-90% VPU)
@@ -106,22 +111,7 @@ enum SignalClass {
     SIG_INT_FAULT   // usterka wewnetrzna (90-100% VPU, VOUT = VPU)
 };
 
-// Klasyfikuje napiecie wyjscia (jako ulamek VPU = Vcc) do klasy sygnalu.
-// Granice wg APS11450.md sekcja 6.
-SignalClass classifySignal(float vFrac)
-{
-    if (vFrac < VFRAC_EXTLOW_MAX) return SIG_EXT_FAULT; // 0-10%
-    if (vFrac < VFRAC_LOW_MAX)    return SIG_LOW;        // 10-30%
-    if (vFrac < VFRAC_EXTMID_MAX) return SIG_EXT_FAULT;  // 30-70%
-    if (vFrac < VFRAC_HIGH_MAX)   return SIG_HIGH;       // 70-90%
-    return SIG_INT_FAULT;                                // 90-100%
-}
-
-// ===========================================================================
-//  K3. Wynik warstwy sprzetowej (Sensor Manager) - SensorState
-//  Zawiera aktywnosc (SIG_HIGH) oraz flagi usterek (internal || external)
-//  dla kazdego z trzech czujnikow. Nie interpretuje poziomu cieczy.
-// ===========================================================================
+// K3. Wynik warstwy sprzetowej (Sensor Manager)
 struct SensorState {
     // Kontrakt wg Soft_Req_Spec_APS11450.md sekcja 2:
     bool low;           // aktywny HIGH na czujniku LOW
@@ -136,6 +126,49 @@ struct SensorState {
     SignalClass highClass;
     SignalClass safetyClass;
 };
+
+// K6. Model poziomu
+enum Level {
+    LVL_UNKNOWN,
+    LVL_EMPTY,
+    LVL_LEVEL1,
+    LVL_LEVEL2,
+    LVL_LEVEL3,
+    LVL_FAULT
+};
+
+// K6. Kody diagnostyczne
+enum DiagCode {
+    E00 = 0,    // brak bledu
+    E10 = 10,   // Internal Fault: low
+    E11 = 11,   // Internal Fault: high
+    E12 = 12,   // Internal Fault: safe
+    E20 = 20,   // External Fault: low
+    E21 = 21,   // External Fault: high
+    E22 = 22,   // External Fault: safe
+    E30 = 30,   // kombinacja niedozwolona (niespojne stany)
+    E31 = 31,   // przeskok poziomu
+    E32 = 32,   // zbyt dlugi stan przejsciowy (timeout)
+    E33 = 33,   // blad sekwencji
+    E34 = 34    // utrata synchronizacji
+};
+
+// K7. Wynik resolvera poziomu
+struct LevelResult {
+    Level    level;   // aktualny (zatwierdzony) poziom systemu
+    DiagCode code;    // kod diagnostyczny biezacego cyklu
+};
+
+// Klasyfikuje napiecie wyjscia (jako ulamek VPU = Vcc) do klasy sygnalu.
+// Granice wg APS11450.md sekcja 6.
+SignalClass classifySignal(float vFrac)
+{
+    if (vFrac < VFRAC_EXTLOW_MAX) return SIG_EXT_FAULT; // 0-10%
+    if (vFrac < VFRAC_LOW_MAX)    return SIG_LOW;        // 10-30%
+    if (vFrac < VFRAC_EXTMID_MAX) return SIG_EXT_FAULT;  // 30-70%
+    if (vFrac < VFRAC_HIGH_MAX)   return SIG_HIGH;       // 70-90%
+    return SIG_INT_FAULT;                                // 90-100%
+}
 
 // ===========================================================================
 //  K4. Helpery sprzetowe (wzorzec z Detektor_APS1145.ino)
@@ -202,34 +235,8 @@ SensorState readSensors()
 }
 
 // ===========================================================================
-//  K6. Model poziomu, kody diagnostyczne i helpery raw
+//  K6. Model poziomu i helpery raw
 // ===========================================================================
-
-// Poziomy systemu (Soft_Req_Spec_APS11450.md sekcja 5, automat stanow).
-enum Level {
-    LVL_UNKNOWN,
-    LVL_EMPTY,
-    LVL_LEVEL1,
-    LVL_LEVEL2,
-    LVL_LEVEL3,
-    LVL_FAULT
-};
-
-// Kody diagnostyczne (How_to_work.md sekcja 4.4).
-enum DiagCode {
-    E00 = 0,    // brak bledu
-    E10 = 10,   // Internal Fault: low
-    E11 = 11,   // Internal Fault: high
-    E12 = 12,   // Internal Fault: safe
-    E20 = 20,   // External Fault: low
-    E21 = 21,   // External Fault: high
-    E22 = 22,   // External Fault: safe
-    E30 = 30,   // kombinacja niedozwolona (niespojne stany)
-    E31 = 31,   // przeskok poziomu
-    E32 = 32,   // zbyt dlugi stan przejsciowy (timeout)
-    E33 = 33,   // blad sekwencji
-    E34 = 34    // utrata synchronizacji
-};
 
 // Surowe bity raw = (low, high, safety), MSB = low.
 // raw = (low<<2) | (high<<1) | safety.
@@ -261,11 +268,6 @@ Level levelFromRaw(uint8_t raw)
 //  K7. Level Resolver - jedyny modul z pamiecia stanu
 //  (Soft_Req_Spec sekcje 5,7,9,10). Zwraca poziom + kod diagnostyczny.
 // ===========================================================================
-
-struct LevelResult {
-    Level    level;   // aktualny (zatwierdzony) poziom systemu
-    DiagCode code;    // kod diagnostyczny biezacego cyklu
-};
 
 // --- Stan wewnetrzny resolvera ---
 Level         currentLevel   = LVL_UNKNOWN;  // zatwierdzony poziom

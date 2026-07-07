@@ -243,3 +243,9 @@ Legenda: `[ ]` do zrobienia · `[~]` w toku · `[x]` gotowe.
   niedozwolonymi (sekcja 10: 010/001/101/011 -> trzymaj+E30/E32).
   `get_errors` → wyłącznie brak sciezki `avr/wdt.h` (toolchain Arduino,
   squiggles wyłączone) — bez błędów logiki/składni. PROJEKT UKOŃCZONY. — OK
+- 2026-07-07 — [HOTFIX] Naprawiono błąd kompilacji Arduino IDE
+  (`does not name a type`) wynikający z auto-generowanych prototypów:
+  przeniesiono wszystkie definicje typów (`SignalClass`, `SensorState`,
+  `Level`, `DiagCode`, `LevelResult`) do jednego bloku nad pierwszą funkcją,
+  usunięto duplikaty niżej w pliku. `get_errors` w VS Code: tylko
+  środowiskowe `avr/wdt.h` (includePath/toolchain). — OK

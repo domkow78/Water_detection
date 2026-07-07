@@ -145,6 +145,40 @@ Dla niedozwolonych kombinacji poziom nie jest zmieniany (utrzymanie poprzedniego
 4. Wgraj szkic.
 5. Otwórz Serial Monitor (115200).
 
+## Ograniczenia i założenia projektowe
+
+### Fundamentalne założenie: Pływak ZAWSZE musi aktywować co najmniej jeden czujnik
+
+Po restarcie systemu **co najmniej jeden z czujników (LOW, HIGH lub SAFE) musi być aktywny**.
+
+Jeśli to założenie nie jest spełnione, resolver **nie potrafi określić rzeczywistego poziomu cieczy**:
+
+- **Pływak poniżej LOW** → raw = 000 = EMPTY (błęd! poziom nieznany)
+- **Pływak powyżej SAFE** → raw = 000 = EMPTY (błęd! przepełnienie niezdetektowane)
+
+#### Konsekwencja
+
+Pływak musi być zawsze w pozycji pomiędzy niżej niż SAFE i wyżej niż LOW. Typowa instalacja:
+
+```
+SAFE ←←← górny czujnik (alarm przepełnienia)
+HIGH ←←← czujnik środkowy (normalny zakres)
+LOW  ←←← dolny czujnik (alarm wyczerpania)
+     ↑↑↑ pływak zawsze tu (aktywuje co najmniej jeden)
+```
+
+### Brak detekcji przepełnienia
+
+System ma tylko 3 czujniki:
+- Nie ma czujnika **powyżej SAFE** → przepełnienie nie jest detektowane,
+- pływak powyżej SAFE daje raw = 000, identycznie jak zbiornik pusty.
+
+Aby obsługiwać przepełnienie, trzeba by dodać 4. czujnik (OVERFLOW).
+
+### Czujnik SAFE dla niskich zbiorników
+
+Jeśli zbiornik jest niski (< 30 cm), czujnik SAFE powinien być umieszczony wystarczająco wysoko, aby był aktywny w maksymalnym poziomie, do którego zbiornik może się napełnić. W przeciwnym razie górny poziom LEVEL3 nie będzie nigdy osiągnięty.
+
 ## Uwagi
 
 - W VS Code mogą pojawiać się ostrzeżenia includePath dla `avr/wdt.h`; kompilacja docelowo w Arduino IDE.

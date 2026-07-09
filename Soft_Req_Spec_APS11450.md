@@ -1,6 +1,6 @@
 # Sterownik poziomu wody oparty o APS11450
 
-_Ostateczna specyfikacja funkcjonalna_
+_Specyfikacja funkcjonalna_
 
 ## 1. Cel projektu
 

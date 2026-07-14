@@ -11,7 +11,7 @@ Wyjścia przekaźników odpowiadają poziomom cieczy:
 - LEVEL1 -> R1=1 R2=0 R3=0
 - LEVEL2 -> R1=1 R2=1 R3=0
 - LEVEL3 -> R1=1 R2=1 R3=1
-- FAULT -> polityka bezpieczeństwa (w tym projekcie wszystkie OFF)
+- FAULT -> polityka bezpieczeństwa (w tym projekcie wszystkie ON — stan alarmowy, urządzenie zewnętrzne musi zareagować błędem)
 
 ## Architektura logiczna
 

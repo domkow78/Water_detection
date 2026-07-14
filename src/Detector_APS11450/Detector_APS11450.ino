@@ -90,11 +90,12 @@ const unsigned long logInterval          = 500;    // okres logowania Serial/OLE
 
 // ---------------------------------------------------------------------------
 // Polityka bezpieczenstwa w stanie FAULT (Soft_Req_Spec sekcja 3)
-// FAULT_RELAYS = wszystkie przekazniki OFF (stan bezpieczny)
+// FAULT_RELAYS = wszystkie przekazniki ON (stan alarmowy - urzadzenie zewnetrzne
+// musi zareagowac na ten stan i wyrzucic blad)
 // ---------------------------------------------------------------------------
-#define FAULT_RELAY_LOW     LOW
-#define FAULT_RELAY_HIGH    LOW
-#define FAULT_RELAY_SAFE    LOW
+#define FAULT_RELAY_LOW     HIGH
+#define FAULT_RELAY_HIGH    HIGH
+#define FAULT_RELAY_SAFE    HIGH
 
 // ===========================================================================
 //  DEFINICJE TYPÓW (muszą być PRZED pierwszą funkcją)
@@ -419,7 +420,7 @@ void applyElectrodes(bool e1, bool e2, bool e3)
 void applyLevel(Level lvl)
 {
     if (lvl == LVL_FAULT) {
-        // Polityka bezpieczenstwa - wszystkie przekazniki OFF.
+        // Polityka bezpieczenstwa - wszystkie przekazniki ON (stan alarmowy).
         digitalWrite(RELAY_LOW_PIN,  FAULT_RELAY_LOW);
         digitalWrite(RELAY_HIGH_PIN, FAULT_RELAY_HIGH);
         digitalWrite(RELAY_SAFE_PIN, FAULT_RELAY_SAFE);

@@ -132,7 +132,7 @@ Reguły przejść:
 - tylko zmiany o **sąsiedni** poziom,
 - zatwierdzenie po czasie stabilizacji `STABLE_MS ≈ 1000 ms`,
 - dowolna usterka sensora → `FAULT` + Alarm; `FAULT → UNKNOWN` (odzysk),
-- polityka FAULT (sekcja 3 spec, konfigurowalna): `FAULT_RELAYS` = wszystkie OFF (bezpiecznie).
+- polityka FAULT (sekcja 3 spec, konfigurowalna): `FAULT_RELAYS` = wszystkie ON (stan alarmowy — urządzenie zewnętrzne musi zareagować błędem).
 
 ### 4.4. Kody diagnostyczne
 
@@ -197,7 +197,7 @@ Legenda: `[ ]` do zrobienia · `[~]` w toku · `[x]` gotowe.
   piny Hall A3/A6/A7, przekaźniki A0/A1/A2 (E1-E3), `ADC_MAX`, `SERIAL_BAUD`,
   globalne `Vcc`, progi ułamkowe VPU (0.10/0.30/0.70/0.90), czasy
   (`STABLE_MS`/`INIT_SAMPLE_MS`/`TRANSIENT_TIMEOUT_MS`/`logInterval`),
-  polityka `FAULT_RELAY_*` = OFF. `get_errors` → brak błędów. Następny: K2. — OK
+  polityka `FAULT_RELAY_*` = ON (stan alarmowy). `get_errors` → brak błędów. Następny: K2. — OK
 - 2026-07-07 — [K2] Dodano `enum SignalClass {SIG_LOW,SIG_HIGH,SIG_EXT_FAULT,
   SIG_INT_FAULT}` + `classifySignal(float vFrac)` wg pasm APS11450.md sek. 6
   (progi 0.10/0.30/0.70/0.90 VPU). — OK
@@ -226,7 +226,7 @@ Legenda: `[ ]` do zrobienia · `[~]` w toku · `[x]` gotowe.
 - 2026-07-07 — [K8] Dodano `electrodesFromLevel(level,&e1,&e2,&e3)`
   (EMPTY=000,L1=100,L2=110,L3=111; UNKNOWN/FAULT->000). — OK
 - 2026-07-07 — [K9] Dodano Relay Manager: `applyElectrodes(e1,e2,e3)`
-  (R1=E1,R2=E2,R3=E3) oraz `applyLevel(lvl)` (FAULT->FAULT_RELAYS OFF;
+  (R1=E1,R2=E2,R3=E3) oraz `applyLevel(lvl)` (FAULT->FAULT_RELAYS ON;
   UNKNOWN->trzymaj poprzedni; inne->elektrody). `get_errors` → tylko nota
   includePath AVR. Następny: K10. — OK
 - 2026-07-07 — [K10] Dodano `setup()`: wdt_disable, Serial, piny przekaźników

@@ -6,15 +6,16 @@ Odpowiednio dobrany magnes w pływaku, występuje nakładanie pola magnetycznego
 Dodatkowo mechaniczna blokada pływaka na poziomie Op Lev 2, wymuszająca aktywacje czujnika tego poziomu. Pływak nie może opaść niżej.
  
 ## Charakterystyka stref
-Strefa	Położenie pływaka	        Op Lev 1	Op Lev 2	Uwagi
-1	Poniżej Op Lev 2	            L	        H	        Stan stabilny
-2	W obszarze Op Lev 2	            L	        H	        Stan stabilny
-	Przejście 2→3	                L→H	        H	        Zbocze Lev1 ↑
-3	Pomiędzy Op Lev 2 i Op Lev 1   	H	        H	        Stan stabilny
-	Przejście 3→4	                H	        H→L	        Zbocze Lev2 ↓
-4	W obszarze Op Lev 1	            H	        L	        Stan stabilny
-	Przejście 4→5	                H→L	        L	        Zbocze Lev1 ↓
-5	Powyżej Op Lev 1	            L	        L	        Stan stabilny
+Strefa	Położenie pływaka	            Op Lev 1	Op Lev 2	Uwagi
+
+1   	Poniżej Op Lev 2	            L	        H	        Stan stabilny
+2	    W obszarze Op Lev 2	            L	        H	        Stan stabilny
+	    Przejście 2→3	                L→H	        H	        Zbocze Lev1 ↑
+3	    Pomiędzy Op Lev 2 i Op Lev 1   	H	        H	        Stan stabilny
+	    Przejście 3→4	                H	        H→L	        Zbocze Lev2 ↓
+4	    W obszarze Op Lev 1	            H	        L	        Stan stabilny
+	    Przejście 4→5	                H→L	        L	        Zbocze Lev1 ↓
+5	    Powyżej Op Lev 1	            L	        L	        Stan stabilny
 
 Wszystkie strefy z wyjątkiem 1 i 2 są wyraźnie rozróżnialne na podstawie stanu czujników.
 Tabela opisuje ruch pływaka do góry.

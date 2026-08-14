@@ -10,31 +10,58 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#define HALL_LOW_PIN        A3
-#define HALL_HIGH_PIN       A6
-#define HALL_SAFE_PIN       A7
+#define SENSOR_LOW_PIN        A3
+#define SENSOR_HIGH_PIN       A6
+#define SENSOR_SAFE_PIN       A7
 
-#define RELAY_LOW_PIN       A0
-#define RELAY_HIGH_PIN      A1
-#define RELAY_SAFE_PIN      A2
+#define RELAY_LOW_PIN        A0
+#define RELAY_HIGH_PIN       A1
+#define RELAY_SAFE_PIN       A2
 
 #define ADC_MAX 1023.0
+#define RSENSE_OHMS 220.0
+#define SENSOR_CURRENT_NO_MAGNET_MA 14.5
+#define SENSOR_CURRENT_WITH_MAGNET_MA 3.5
 
 float Vcc = 0.0;
 
-// TMAG5124B works as a current source:
-// - no magnet: ~14.5 mA -> voltage on 220 Ω = 3.19 V
-// - magnet present: ~3.5 mA -> voltage on 220 Ω = 0.77 V
-// We want relay ON when magnet is detected, so the active state is the LOW-voltage state.
-const float MAGNET_DETECTED_V   = 1.5;
-const float MAGNET_RELEASED_V   = 2.6;
+// TMAG5124B is a current source, not a voltage source.
+// With 220 Ω sense resistor:
+// - no magnet: 14.5 mA -> 3.19 V
+// - magnet present: 3.5 mA -> 0.77 V
+// Magnet detected means lower voltage on the sense resistor.
+const float MAGNET_DETECTED_V = 1.5;
+const float MAGNET_RELEASED_V = 2.6;
+
+const float SENSOR_OPEN_V = 0.25;       // ~1.1 mA at 220 Ω => probable open circuit / no current
+const float SENSOR_OVER_CURRENT_V = 4.2; // ~19 mA at 220 Ω => clearly above normal range
 
 unsigned long lastLogTime = 0;
 const unsigned long logInterval = 500;
 
-bool hallLowState  = false;
-bool hallHighState = false;
-bool hallSafeState = false;
+bool sensorLowState = false;
+bool sensorHighState = false;
+bool sensorSafeState = false;
+
+enum SensorDiag {
+    DIAG_OK,
+    DIAG_OPEN,
+    DIAG_OVER_CURRENT
+};
+
+const char* diagToString(SensorDiag diag)
+{
+    switch (diag)
+    {
+        case DIAG_OPEN:
+            return "OPEN";
+        case DIAG_OVER_CURRENT:
+            return "OVR";
+        case DIAG_OK:
+        default:
+            return "OK";
+    }
+}
 
 long readVcc()
 {
@@ -49,9 +76,17 @@ long readVcc()
 
 int readADCStable(uint8_t pin)
 {
-    analogRead(pin);
-    delayMicroseconds(20);
-    return analogRead(pin);
+    uint32_t sum = 0;
+    const uint8_t samples = 8;
+
+    for (uint8_t i = 0; i < samples; i++)
+    {
+        analogRead(pin);
+        delayMicroseconds(20);
+        sum += analogRead(pin);
+    }
+
+    return (int)(sum / samples);
 }
 
 float adcToVoltage(int adcValue)
@@ -61,7 +96,7 @@ float adcToVoltage(int adcValue)
 
 bool applyHysteresis(float voltage, bool currentState)
 {
-    // Magnet present = lower current = lower voltage across Rsense
+    // Magnet present => lower voltage on the sense resistor.
     if (!currentState && voltage < MAGNET_DETECTED_V)
         return true;
 
@@ -69,6 +104,17 @@ bool applyHysteresis(float voltage, bool currentState)
         return false;
 
     return currentState;
+}
+
+SensorDiag getSensorDiag(float voltage)
+{
+    if (voltage < SENSOR_OPEN_V)
+        return DIAG_OPEN;
+
+    if (voltage > SENSOR_OVER_CURRENT_V)
+        return DIAG_OVER_CURRENT;
+
+    return DIAG_OK;
 }
 
 void setup()
@@ -104,18 +150,17 @@ void setup()
 
     delay(100);
 
-    float vLow  = adcToVoltage(readADCStable(HALL_LOW_PIN));
-    float vHigh = adcToVoltage(readADCStable(HALL_HIGH_PIN));
-    float vSafe = adcToVoltage(readADCStable(HALL_SAFE_PIN));
+    float vLow  = adcToVoltage(readADCStable(SENSOR_LOW_PIN));
+    float vHigh = adcToVoltage(readADCStable(SENSOR_HIGH_PIN));
+    float vSafe = adcToVoltage(readADCStable(SENSOR_SAFE_PIN));
 
-    // Magnet detected => low voltage on the sense resistor.
-    hallLowState  = (vLow  < MAGNET_DETECTED_V);
-    hallHighState = (vHigh < MAGNET_DETECTED_V);
-    hallSafeState = (vSafe < MAGNET_DETECTED_V);
+    sensorLowState  = (vLow  < MAGNET_DETECTED_V);
+    sensorHighState = (vHigh < MAGNET_DETECTED_V);
+    sensorSafeState = (vSafe < MAGNET_DETECTED_V);
 
-    digitalWrite(RELAY_LOW_PIN,  hallLowState);
-    digitalWrite(RELAY_HIGH_PIN, hallHighState);
-    digitalWrite(RELAY_SAFE_PIN, hallSafeState);
+    digitalWrite(RELAY_LOW_PIN,  sensorLowState);
+    digitalWrite(RELAY_HIGH_PIN, sensorHighState);
+    digitalWrite(RELAY_SAFE_PIN, sensorSafeState);
 
     Serial.println("=== TMAG5124 SYSTEM START ===");
     Serial.print("Measured Vcc: ");
@@ -139,38 +184,61 @@ void loop()
 {
     wdt_reset();
 
-    int hallLowRaw  = readADCStable(HALL_LOW_PIN);
-    int hallHighRaw = readADCStable(HALL_HIGH_PIN);
-    int hallSafeRaw = readADCStable(HALL_SAFE_PIN);
+    int sensorLowRaw  = readADCStable(SENSOR_LOW_PIN);
+    int sensorHighRaw = readADCStable(SENSOR_HIGH_PIN);
+    int sensorSafeRaw = readADCStable(SENSOR_SAFE_PIN);
 
-    float hallLowV  = adcToVoltage(hallLowRaw);
-    float hallHighV = adcToVoltage(hallHighRaw);
-    float hallSafeV = adcToVoltage(hallSafeRaw);
+    float sensorLowV  = adcToVoltage(sensorLowRaw);
+    float sensorHighV = adcToVoltage(sensorHighRaw);
+    float sensorSafeV = adcToVoltage(sensorSafeRaw);
 
-    hallLowState  = applyHysteresis(hallLowV,  hallLowState);
-    hallHighState = applyHysteresis(hallHighV, hallHighState);
-    hallSafeState = applyHysteresis(hallSafeV, hallSafeState);
+    SensorDiag sensorLowDiag  = getSensorDiag(sensorLowV);
+    SensorDiag sensorHighDiag = getSensorDiag(sensorHighV);
+    SensorDiag sensorSafeDiag = getSensorDiag(sensorSafeV);
 
-    digitalWrite(RELAY_LOW_PIN,  hallLowState);
-    digitalWrite(RELAY_HIGH_PIN, hallHighState);
-    digitalWrite(RELAY_SAFE_PIN, hallSafeState);
+    if (sensorLowDiag == DIAG_OPEN || sensorLowDiag == DIAG_OVER_CURRENT)
+        sensorLowState = false;
+    else
+        sensorLowState = applyHysteresis(sensorLowV, sensorLowState);
+
+    if (sensorHighDiag == DIAG_OPEN || sensorHighDiag == DIAG_OVER_CURRENT)
+        sensorHighState = false;
+    else
+        sensorHighState = applyHysteresis(sensorHighV, sensorHighState);
+
+    if (sensorSafeDiag == DIAG_OPEN || sensorSafeDiag == DIAG_OVER_CURRENT)
+        sensorSafeState = false;
+    else
+        sensorSafeState = applyHysteresis(sensorSafeV, sensorSafeState);
+
+    digitalWrite(RELAY_LOW_PIN,  sensorLowState);
+    digitalWrite(RELAY_HIGH_PIN, sensorHighState);
+    digitalWrite(RELAY_SAFE_PIN, sensorSafeState);
 
     if (millis() - lastLogTime >= logInterval)
     {
         lastLogTime = millis();
 
-        Serial.print("LOW: ");
-        Serial.print(hallLowV, 3);
-        Serial.print(" V | HIGH: ");
-        Serial.print(hallHighV, 3);
-        Serial.print(" V | SAFE: ");
-        Serial.print(hallSafeV, 3);
-        Serial.print(" V || States: ");
-        Serial.print(hallLowState);
+        Serial.print("VCC: ");
+        Serial.print(Vcc, 3);
+        Serial.print(" V | LOW: ");
+        Serial.print(sensorLowV, 3);
+        Serial.print(" V [");
+        Serial.print(diagToString(sensorLowDiag));
+        Serial.print("] | HIGH: ");
+        Serial.print(sensorHighV, 3);
+        Serial.print(" V [");
+        Serial.print(diagToString(sensorHighDiag));
+        Serial.print("] | SAFE: ");
+        Serial.print(sensorSafeV, 3);
+        Serial.print(" V [");
+        Serial.print(diagToString(sensorSafeDiag));
+        Serial.print("] || States: ");
+        Serial.print(sensorLowState);
         Serial.print(" ");
-        Serial.print(hallHighState);
+        Serial.print(sensorHighState);
         Serial.print(" ");
-        Serial.println(hallSafeState);
+        Serial.println(sensorSafeState);
 
         display.clearDisplay();
         display.setTextSize(1);
@@ -179,26 +247,33 @@ void loop()
         display.println(F("TMAG5124 Monitor"));
         display.println(F("------------------"));
 
+        display.print(F("VCC: "));
+        display.print(Vcc, 2);
+        display.println(F("V"));
+
         display.print(F("LOW:  "));
-        display.print(hallLowV, 2);
-        display.println(F(" V"));
+        display.print(sensorLowV, 2);
+        display.print(F("V "));
+        display.println(diagToString(sensorLowDiag));
 
         display.print(F("HIGH: "));
-        display.print(hallHighV, 2);
-        display.println(F(" V"));
+        display.print(sensorHighV, 2);
+        display.print(F("V "));
+        display.println(diagToString(sensorHighDiag));
 
         display.print(F("SAFE: "));
-        display.print(hallSafeV, 2);
-        display.println(F(" V"));
+        display.print(sensorSafeV, 2);
+        display.print(F("V "));
+        display.println(diagToString(sensorSafeDiag));
 
         display.println(F("------------------"));
 
         display.print(F("States: "));
-        display.print(hallLowState ? "1" : "0");
+        display.print(sensorLowState ? "1" : "0");
         display.print(F(" "));
-        display.print(hallHighState ? "1" : "0");
+        display.print(sensorHighState ? "1" : "0");
         display.print(F(" "));
-        display.println(hallSafeState ? "1" : "0");
+        display.println(sensorSafeState ? "1" : "0");
 
         display.display();
     }

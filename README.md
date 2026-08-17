@@ -32,8 +32,8 @@ Katalog [tests](tests) jest przeznaczony na testy i sprawdzenia funkcjonalne pro
 
 ## Wspierane typy czujników
 
-- APS11450 — czujnik Halla używany do detekcji poziomu cieczy.
-- TLE4946 — czujnik Halla analogowego typu.
+- APS11450 — czujnik Halla używany do detekcji poziomu cieczy z diagnostyką.
+- TLE4946 — czujnik Halla typu latch.
 - TMAG5124B — czujnik prądowy z detekcją obecności magnesu.
 - Reed Switch — czujnik binarny z połączeniem typu NO/NC zależnym od obecności magnesu.
 

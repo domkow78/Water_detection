@@ -142,6 +142,11 @@ void setRelayState(uint8_t pin, bool active)
     digitalWrite(pin, active ? RELAY_ACTIVE : RELAY_OPEN);
 }
 
+const char* bitState(bool state)
+{
+    return state ? "1" : "0";
+}
+
 void setup()
 {
     wdt_disable();
@@ -189,6 +194,13 @@ void setup()
         sensorHighState = (vHigh < MAGNET_DETECTED_V);
     if (isValidSensorVoltage(vSafe))
         sensorSafeState = (vSafe < MAGNET_DETECTED_V);
+
+    if (!isValidSensorVoltage(vLow))
+        sensorLowState = false;
+    if (!isValidSensorVoltage(vHigh))
+        sensorHighState = false;
+    if (!isValidSensorVoltage(vSafe))
+        sensorSafeState = false;
 
     setRelayState(RELAY_LOW_PIN,  sensorLowState);
     setRelayState(RELAY_HIGH_PIN, sensorHighState);
@@ -255,11 +267,11 @@ void loop()
         Serial.print(" V [");
         Serial.print(diagToString(sensorSafeDiag));
         Serial.print("] || LOW/HIGH/SAFE: ");
-        Serial.print(sensorLowState ? "1" : "0");
+        Serial.print(bitState(sensorLowState));
         Serial.print("/");
-        Serial.print(sensorHighState ? "1" : "0");
+        Serial.print(bitState(sensorHighState));
         Serial.print("/");
-        Serial.println(sensorSafeState ? "1" : "0");
+        Serial.println(bitState(sensorSafeState));
 
         display.clearDisplay();
         display.setTextSize(1);
@@ -290,11 +302,11 @@ void loop()
         display.println(F("------------------"));
 
         display.print(F("LOW/HIGH/SAFE: "));
-        display.print(sensorLowState ? "1" : "0");
+        display.print(bitState(sensorLowState));
         display.print(F("/"));
-        display.print(sensorHighState ? "1" : "0");
+        display.print(bitState(sensorHighState));
         display.print(F("/"));
-        display.println(sensorSafeState ? "1" : "0");
+        display.println(bitState(sensorSafeState));
 
         display.display();
     }

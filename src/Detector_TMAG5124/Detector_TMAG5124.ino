@@ -19,9 +19,6 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define RELAY_SAFE_PIN       A2
 
 #define ADC_MAX 1023.0
-#define RSENSE_OHMS 220.0
-#define SENSOR_CURRENT_NO_MAGNET_MA 14.5
-#define SENSOR_CURRENT_WITH_MAGNET_MA 3.5
 
 float Vcc = 0.0;
 
@@ -32,12 +29,13 @@ const bool RELAY_OPEN = HIGH;
 // Measured real-world values on this board:
 // - no magnet: ~2.56..2.59 V
 // - magnet present: ~0.68..0.72 V
-// Use a midpoint hysteresis window that matches the actual hardware behavior.
+// Hysteresis uses a midpoint window to avoid chattering around the transition.
 const float MAGNET_DETECTED_V = 1.2;
 const float MAGNET_RELEASED_V = 1.8;
 
-const float SENSOR_OPEN_V = 0.25;       // ~1.1 mA at 220 Ω => probable open circuit / no current
-const float SENSOR_OVER_CURRENT_V = 4.2; // ~19 mA at 220 Ω => clearly above normal range
+// Fault detection thresholds: below 0.25 V = open circuit, above 4.2 V = overcurrent.
+const float SENSOR_OPEN_V = 0.25;
+const float SENSOR_OVER_CURRENT_V = 4.2;
 
 unsigned long lastLogTime = 0;
 const unsigned long logInterval = 500;
@@ -125,6 +123,7 @@ SensorDiag getSensorDiag(float voltage)
     return DIAG_OK;
 }
 
+// Clear fault state and keep the relay open if the input is invalid.
 void updateRelayState(bool& sensorState, float voltage, SensorDiag diag)
 {
     if (diag == DIAG_OPEN || diag == DIAG_OVER_CURRENT)
@@ -136,6 +135,7 @@ void updateRelayState(bool& sensorState, float voltage, SensorDiag diag)
     sensorState = applyHysteresis(voltage, sensorState);
 }
 
+// The board expects an active-low relay drive.
 void setRelayState(uint8_t pin, bool active)
 {
     digitalWrite(pin, active ? RELAY_ACTIVE : RELAY_OPEN);

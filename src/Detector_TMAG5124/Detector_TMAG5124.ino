@@ -34,8 +34,10 @@ const bool RELAY_OPEN = HIGH;
 // - no magnet: 14.5 mA -> 3.19 V
 // - magnet present: 3.5 mA -> 0.77 V
 // Magnet detected means lower voltage on the sense resistor.
+// TMAG5124B status should not stay latched at 110 when the signal only moves
+// slightly above the activation threshold. Keep a narrow hysteresis band.
 const float MAGNET_DETECTED_V = 1.5;
-const float MAGNET_RELEASED_V = 2.6;
+const float MAGNET_RELEASED_V = 1.9;
 
 const float SENSOR_OPEN_V = 0.25;       // ~1.1 mA at 220 Ω => probable open circuit / no current
 const float SENSOR_OVER_CURRENT_V = 4.2; // ~19 mA at 220 Ω => clearly above normal range

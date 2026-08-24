@@ -1,4 +1,5 @@
 venv/
 __pycache
 *.pyc
+notatki.md
 

@@ -25,6 +25,10 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 float Vcc = 0.0;
 
+// Relay board is configured as active-low: ON = LOW, OFF/OPEN = HIGH.
+const bool RELAY_ACTIVE = LOW;
+const bool RELAY_OPEN = HIGH;
+
 // TMAG5124B is a current source, not a voltage source.
 // With 220 Ω sense resistor:
 // - no magnet: 14.5 mA -> 3.19 V
@@ -106,6 +110,11 @@ bool applyHysteresis(float voltage, bool currentState)
     return currentState;
 }
 
+bool isValidSensorVoltage(float voltage)
+{
+    return voltage >= SENSOR_OPEN_V && voltage <= SENSOR_OVER_CURRENT_V;
+}
+
 SensorDiag getSensorDiag(float voltage)
 {
     if (voltage < SENSOR_OPEN_V)
@@ -115,6 +124,22 @@ SensorDiag getSensorDiag(float voltage)
         return DIAG_OVER_CURRENT;
 
     return DIAG_OK;
+}
+
+void updateRelayState(bool& sensorState, float voltage, SensorDiag diag)
+{
+    if (diag == DIAG_OPEN || diag == DIAG_OVER_CURRENT)
+    {
+        sensorState = false;
+        return;
+    }
+
+    sensorState = applyHysteresis(voltage, sensorState);
+}
+
+void setRelayState(uint8_t pin, bool active)
+{
+    digitalWrite(pin, active ? RELAY_ACTIVE : RELAY_OPEN);
 }
 
 void setup()
@@ -154,13 +179,20 @@ void setup()
     float vHigh = adcToVoltage(readADCStable(SENSOR_HIGH_PIN));
     float vSafe = adcToVoltage(readADCStable(SENSOR_SAFE_PIN));
 
-    sensorLowState  = (vLow  < MAGNET_DETECTED_V);
-    sensorHighState = (vHigh < MAGNET_DETECTED_V);
-    sensorSafeState = (vSafe < MAGNET_DETECTED_V);
+    sensorLowState  = false;
+    sensorHighState = false;
+    sensorSafeState = false;
 
-    digitalWrite(RELAY_LOW_PIN,  sensorLowState);
-    digitalWrite(RELAY_HIGH_PIN, sensorHighState);
-    digitalWrite(RELAY_SAFE_PIN, sensorSafeState);
+    if (isValidSensorVoltage(vLow))
+        sensorLowState = (vLow < MAGNET_DETECTED_V);
+    if (isValidSensorVoltage(vHigh))
+        sensorHighState = (vHigh < MAGNET_DETECTED_V);
+    if (isValidSensorVoltage(vSafe))
+        sensorSafeState = (vSafe < MAGNET_DETECTED_V);
+
+    setRelayState(RELAY_LOW_PIN,  sensorLowState);
+    setRelayState(RELAY_HIGH_PIN, sensorHighState);
+    setRelayState(RELAY_SAFE_PIN, sensorSafeState);
 
     Serial.println("=== TMAG5124 SYSTEM START ===");
     Serial.print("Measured Vcc: ");
@@ -196,24 +228,13 @@ void loop()
     SensorDiag sensorHighDiag = getSensorDiag(sensorHighV);
     SensorDiag sensorSafeDiag = getSensorDiag(sensorSafeV);
 
-    if (sensorLowDiag == DIAG_OPEN || sensorLowDiag == DIAG_OVER_CURRENT)
-        sensorLowState = false;
-    else
-        sensorLowState = applyHysteresis(sensorLowV, sensorLowState);
+    updateRelayState(sensorLowState, sensorLowV, sensorLowDiag);
+    updateRelayState(sensorHighState, sensorHighV, sensorHighDiag);
+    updateRelayState(sensorSafeState, sensorSafeV, sensorSafeDiag);
 
-    if (sensorHighDiag == DIAG_OPEN || sensorHighDiag == DIAG_OVER_CURRENT)
-        sensorHighState = false;
-    else
-        sensorHighState = applyHysteresis(sensorHighV, sensorHighState);
-
-    if (sensorSafeDiag == DIAG_OPEN || sensorSafeDiag == DIAG_OVER_CURRENT)
-        sensorSafeState = false;
-    else
-        sensorSafeState = applyHysteresis(sensorSafeV, sensorSafeState);
-
-    digitalWrite(RELAY_LOW_PIN,  sensorLowState);
-    digitalWrite(RELAY_HIGH_PIN, sensorHighState);
-    digitalWrite(RELAY_SAFE_PIN, sensorSafeState);
+    setRelayState(RELAY_LOW_PIN,  sensorLowState);
+    setRelayState(RELAY_HIGH_PIN, sensorHighState);
+    setRelayState(RELAY_SAFE_PIN, sensorSafeState);
 
     if (millis() - lastLogTime >= logInterval)
     {
@@ -233,12 +254,12 @@ void loop()
         Serial.print(sensorSafeV, 3);
         Serial.print(" V [");
         Serial.print(diagToString(sensorSafeDiag));
-        Serial.print("] || States: ");
-        Serial.print(sensorLowState);
-        Serial.print(" ");
-        Serial.print(sensorHighState);
-        Serial.print(" ");
-        Serial.println(sensorSafeState);
+        Serial.print("] || LOW/HIGH/SAFE: ");
+        Serial.print(sensorLowState ? "1" : "0");
+        Serial.print("/");
+        Serial.print(sensorHighState ? "1" : "0");
+        Serial.print("/");
+        Serial.println(sensorSafeState ? "1" : "0");
 
         display.clearDisplay();
         display.setTextSize(1);
@@ -268,11 +289,11 @@ void loop()
 
         display.println(F("------------------"));
 
-        display.print(F("States: "));
+        display.print(F("LOW/HIGH/SAFE: "));
         display.print(sensorLowState ? "1" : "0");
-        display.print(F(" "));
+        display.print(F("/"));
         display.print(sensorHighState ? "1" : "0");
-        display.print(F(" "));
+        display.print(F("/"));
         display.println(sensorSafeState ? "1" : "0");
 
         display.display();
